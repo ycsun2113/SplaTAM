@@ -121,7 +121,7 @@ source ./splatam/bin/activate
 pip install -r venv_requirements.txt
 ```
 
-**New Option to Build Docker Image!**
+**New Option to Build the Docker Image!**
 
 ```bash
 # Build the Docker image

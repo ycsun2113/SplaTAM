@@ -23,8 +23,9 @@ config = dict(
         eval_save_qual=True,
     ),
     data=dict(
-        basedir="./data/Replica",
-        gradslam_data_cfg="./data/replica.yaml",
+        # basedir="./data/Replica",
+        basedir="/mnt/workspace/datasets/replica",
+        gradslam_data_cfg="./configs/data/replica.yaml",
         sequence="room0",
         desired_image_height=680,
         desired_image_width=1200,
@@ -34,7 +35,7 @@ config = dict(
         num_frames=100,
         eval_stride=5,
         eval_num_frames=400,
-        param_ckpt_path='./experiments/Replica/room0_seed0/params.npz'
+        param_ckpt_path='./experiments/Replica/room0_0/params.npz'
     ),
     train=dict(
         num_iters_mapping=15000,

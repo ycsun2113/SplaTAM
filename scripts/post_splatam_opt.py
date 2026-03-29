@@ -242,9 +242,11 @@ def rgbd_slam(config: dict):
     gs_cams_all_frames_map = []
     for time_idx in range(num_frames):
         color, depth, _, _ = mapping_dataset[time_idx]
-        # Process poses
-        curr_cam_rot = F.normalize(params['cam_unnorm_rots'][..., time_idx].detach())
-        curr_cam_tran = params['cam_trans'][..., time_idx].detach()
+        # Compute original frame index to look up correct pose in checkpoint
+        orig_frame_idx = dataset_config["start"] + time_idx * dataset_config["stride"]
+        # Process poses using the original frame index
+        curr_cam_rot = F.normalize(params['cam_unnorm_rots'][..., orig_frame_idx].detach())
+        curr_cam_tran = params['cam_trans'][..., orig_frame_idx].detach()
         gt_w2c = torch.eye(4).cuda().float()
         gt_w2c[:3, :3] = build_rotation(curr_cam_rot)
         gt_w2c[:3, 3] = curr_cam_tran
@@ -337,12 +339,14 @@ def rgbd_slam(config: dict):
                         eval_dir = os.path.join(output_dir, "eval_7k")
                         os.makedirs(eval_dir, exist_ok=True)
                         if config['use_wandb']:
-                            eval(eval_dataset, eval_params, eval_num_frames, eval_dir, sil_thres=config['train']['sil_thres'],
+                            eval(mapping_dataset, eval_params, num_frames, eval_dir, sil_thres=config['train']['sil_thres'],
                                  wandb_run=wandb_run, wandb_save_qual=config['wandb']['eval_save_qual'],
-                                 mapping_iters=config["train"]["num_iters_mapping"], add_new_gaussians=True)
+                                 mapping_iters=config["train"]["num_iters_mapping"], add_new_gaussians=True,
+                                 estimated_w2c_list=gt_w2c_all_frames_map)
                         else:
-                            eval(eval_dataset, eval_params, eval_num_frames, eval_dir, sil_thres=config['train']['sil_thres'],
-                                 mapping_iters=config["train"]["num_iters_mapping"], add_new_gaussians=True)
+                            eval(mapping_dataset, eval_params, num_frames, eval_dir, sil_thres=config['train']['sil_thres'],
+                                 mapping_iters=config["train"]["num_iters_mapping"], add_new_gaussians=True,
+                                 estimated_w2c_list=gt_w2c_all_frames_map)
             if num_iters_mapping > 0:
                 progress_bar.close()
 
@@ -358,12 +362,14 @@ def rgbd_slam(config: dict):
     with torch.no_grad():
         eval_params = convert_params_to_store(params)
         if config['use_wandb']:
-            eval(eval_dataset, eval_params, eval_num_frames, eval_dir, sil_thres=config['train']['sil_thres'],
+            eval(mapping_dataset, eval_params, num_frames, eval_dir, sil_thres=config['train']['sil_thres'],
                  wandb_run=wandb_run, wandb_save_qual=config['wandb']['eval_save_qual'],
-                 mapping_iters=config["train"]["num_iters_mapping"], add_new_gaussians=True)
+                 mapping_iters=config["train"]["num_iters_mapping"], add_new_gaussians=True,
+                 estimated_w2c_list=gt_w2c_all_frames_map)
         else:
-            eval(eval_dataset, eval_params, eval_num_frames, eval_dir, sil_thres=config['train']['sil_thres'],
-                 mapping_iters=config["train"]["num_iters_mapping"], add_new_gaussians=True)
+            eval(mapping_dataset, eval_params, num_frames, eval_dir, sil_thres=config['train']['sil_thres'],
+                 mapping_iters=config["train"]["num_iters_mapping"], add_new_gaussians=True,
+                 estimated_w2c_list=gt_w2c_all_frames_map)
 
     # Add Camera Parameters to Save them
     params = eval_params

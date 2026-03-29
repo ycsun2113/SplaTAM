@@ -460,7 +460,7 @@ def report_progress(params, data, i, progress_bar, iter_time_idx, sil_thres, eve
                                  wandb_title=f"{stage} Qual Viz")
 
 
-def eval(dataset, final_params, num_frames, eval_dir, sil_thres, mapping_iters, add_new_gaussians, wandb_run=None, wandb_save_qual=False):
+def eval(dataset, final_params, num_frames, eval_dir, sil_thres, mapping_iters, add_new_gaussians, wandb_run=None, wandb_save_qual=False, estimated_w2c_list=None):
     print("Evaluating Final Parameters ...")
     psnr_list = []
     rmse_list = []
@@ -481,8 +481,11 @@ def eval(dataset, final_params, num_frames, eval_dir, sil_thres, mapping_iters, 
         color = color.permute(2, 0, 1) / 255 # (H, W, C) -> (C, H, W)
         depth = depth.permute(2, 0, 1) # (H, W, C) -> (C, H, W)
 
-        # Process Camera Parameters
-        w2c = torch.linalg.inv(pose)
+        # Use estimated poses if provided, otherwise use GT poses from dataset
+        if estimated_w2c_list is not None:
+            w2c = estimated_w2c_list[time_idx]
+        else:
+            w2c = torch.linalg.inv(pose)
         if time_idx == 0:
             first_frame_w2c = w2c
         # Setup Camera
