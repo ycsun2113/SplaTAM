@@ -4,6 +4,8 @@ data/
 experiments/
 results/
 wandb/
+gsplat_v130/
+tmp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -98,9 +98,15 @@ def _ssim(img1, img2, window, window_size, channel, size_average=True):
 
 
 def accumulate_mean2d_gradient(variables):
-    variables['means2D_gradient_accum'][variables['seen']] += torch.norm(
-        variables['means2D'].grad[variables['seen'], :2], dim=-1)
-    variables['denom'][variables['seen']] += 1
+    num_pts = variables['means2D_gradient_accum'].shape[0]
+    seen = variables['seen']
+    means2D = variables['means2D']
+    # Skip if sizes are stale (e.g. pruning changed point count since last get_loss)
+    if seen.shape[0] != num_pts or means2D.shape[0] != num_pts:
+        return variables
+    variables['means2D_gradient_accum'][seen] += torch.norm(
+        means2D.grad[seen, :2], dim=-1)
+    variables['denom'][seen] += 1
     return variables
 
 
@@ -220,6 +226,17 @@ def densify(params, variables, optimizer, iter, densify_dict):
             variables['means2D_gradient_accum'] = torch.zeros(num_pts, device="cuda")
             variables['denom'] = torch.zeros(num_pts, device="cuda")
             variables['max_2D_radius'] = torch.zeros(num_pts, device="cuda")
+            if 'seen' in variables:
+                variables['seen'] = torch.zeros(num_pts, dtype=torch.bool, device="cuda")
+            if 'timestep' in variables:
+                old_ts = variables['timestep']
+                new_count = num_pts - old_ts.shape[0]
+                if new_count > 0:
+                    variables['timestep'] = torch.cat([
+                        old_ts,
+                        torch.full((new_count,), old_ts.max().item() if old_ts.numel() > 0 else 0,
+                                   device=old_ts.device, dtype=old_ts.dtype)
+                    ])
             to_remove = torch.cat((to_split, torch.zeros(n * to_split.sum(), dtype=torch.bool, device="cuda")))
             params, variables = remove_points(to_remove, params, variables, optimizer)
 

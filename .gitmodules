@@ -3,4 +3,7 @@
 	url = git@github.com:JonathonLuiten/diff-gaussian-rasterization-w-depth.git
 [submodule "VGGT-SLAM"]
 	path = VGGT-SLAM
-	url = https://github.com/ycsun2113/VGGT-SLAM.git
+	url = git@github.com:ycsun2113/VGGT-SLAM.git
+[submodule "gsplat"]
+	path = gsplat
+	url = https://github.com/nerfstudio-project/gsplat.git

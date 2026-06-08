@@ -157,8 +157,27 @@ def convert_params_to_store(params):
     return params_to_store
 
 
+def parse_frame_ranges(spec):
+    """Parse comma-separated frame ranges like '127-135,143-158' into a set."""
+    result = set()
+    if not spec:
+        return result
+    for part in str(spec).split(','):
+        part = part.strip()
+        if '-' in part:
+            lo, hi = part.split('-', 1)
+            result.update(range(int(lo), int(hi) + 1))
+        else:
+            result.add(int(part))
+    return result
+
+
 def rgbd_slam(config: dict):
     print("Loaded Config:")
+    # Parse skip_mapping_frames
+    skip_mapping_set = parse_frame_ranges(config['data'].get('skip_mapping_frames', ''))
+    if skip_mapping_set:
+        print(f"Skip-mapping frames (excluded from post-opt): {sorted(skip_mapping_set)}")
     print(f"{config}")
 
     # Init WandB
@@ -299,6 +318,9 @@ def rgbd_slam(config: dict):
                     wandb_run.log({"Learning Rate - Means3D": updated_lr})
                 # Randomly select a frame until current time step
                 iter_time_idx = random.randint(0, time_idx)
+                # Skip frames marked for skip-mapping
+                while iter_time_idx in skip_mapping_set:
+                    iter_time_idx = random.randint(0, time_idx)
                 # Initialize Data for selected frame
                 iter_color = color_all_frames_map[iter_time_idx]
                 iter_depth = depth_all_frames_map[iter_time_idx]

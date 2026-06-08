@@ -452,6 +452,21 @@ def convert_params_to_store(params):
     return params_to_store
 
 
+def parse_frame_ranges(spec):
+    """Parse comma-separated frame ranges like '127-135,143-158' into a set."""
+    result = set()
+    if not spec:
+        return result
+    for part in str(spec).split(','):
+        part = part.strip()
+        if '-' in part:
+            lo, hi = part.split('-', 1)
+            result.update(range(int(lo), int(hi) + 1))
+        else:
+            result.add(int(part))
+    return result
+
+
 def rgbd_slam(config: dict):
     # Print Config
     print("Loaded Config:")
@@ -462,6 +477,10 @@ def rgbd_slam(config: dict):
         config['tracking']['visualize_tracking_loss'] = False
     if "gaussian_distribution" not in config:
         config['gaussian_distribution'] = "isotropic"
+    # Parse skip_mapping_frames
+    skip_mapping_set = parse_frame_ranges(config['data'].get('skip_mapping_frames', ''))
+    if skip_mapping_set:
+        print(f"Skip-mapping frames (tracking only): {sorted(skip_mapping_set)}")
     print(f"{config}")
 
     # Create Output Directories
@@ -774,7 +793,10 @@ def rgbd_slam(config: dict):
                 print('Failed to evaluate trajectory.')
 
         # Densification & KeyFrame-based Mapping
-        if time_idx == 0 or (time_idx+1) % config['map_every'] == 0:
+        is_skip_mapping = time_idx in skip_mapping_set
+        if is_skip_mapping:
+            print(f"\n[Skip-Mapping] Frame {time_idx}: tracking only, skipping densification & mapping")
+        if (time_idx == 0 or (time_idx+1) % config['map_every'] == 0) and not is_skip_mapping:
             # Densification
             if config['mapping']['add_new_gaussians'] and time_idx > 0:
                 # Setup Data for Densification
@@ -908,9 +930,9 @@ def rgbd_slam(config: dict):
                     save_params_ckpt(params, ckpt_output_dir, time_idx)
                     print('Failed to evaluate trajectory.')
         
-        # Add frame to keyframe list
-        if ((time_idx == 0) or ((time_idx+1) % config['keyframe_every'] == 0) or \
-                    (time_idx == num_frames-2)) and (not torch.isinf(curr_gt_w2c[-1]).any()) and (not torch.isnan(curr_gt_w2c[-1]).any()):
+        # Add frame to keyframe list (skip for skip-mapping frames)
+        if not is_skip_mapping and (((time_idx == 0) or ((time_idx+1) % config['keyframe_every'] == 0) or \
+                    (time_idx == num_frames-2)) and (not torch.isinf(curr_gt_w2c[-1]).any()) and (not torch.isnan(curr_gt_w2c[-1]).any())):
             with torch.no_grad():
                 # Get the current estimated rotation & translation
                 curr_cam_rot = F.normalize(params['cam_unnorm_rots'][..., time_idx].detach())
